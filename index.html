@@ -219,7 +219,7 @@
                 return;
             }
             try {
-                const tx = await contract.methods.mintPixelNFT(canvas).send({ from: accounts[0], gas: 10000000 });
+                const tx = await contract.methods.mintPixelNFT(canvas).send({ from: accounts[0], gas: 2000000 });
                 const tokenId = tx.events.NFTMinted.returnValues.tokenId;
                 document.getElementById('createStatus').innerText = `NFT #${tokenId} created!`;
                 initializeCanvas();
@@ -258,7 +258,7 @@
             }
             try {
                 document.getElementById('voteStatus').innerText = "Sending vote transaction...";
-                await contract.methods.vote(nftId).send({ from: accounts[0], gas: "50000", gasPrice: await web3.eth.getGasPrice() });
+                await contract.methods.vote(nftId).send({ from: accounts[0], gas: "100000", gasPrice: await web3.eth.getGasPrice() });
                 document.getElementById('voteStatus').innerText = `Voted successfully for NFT #${nftId}!`;
                 voteInput.value = "";
                 loadTop100NFTs();
@@ -399,7 +399,7 @@
         async function voteNFT(id) {
             if (!contract || !accounts) return alert("Connect wallet first!");
             try {
-                const tx = await contract.methods.vote(id).send({ from: accounts[0], gas: 30000 });
+                const tx = await contract.methods.vote(id).send({ from: accounts[0], gas: 100000 });
                 loadTop100NFTs();
             } catch (error) {
                 document.getElementById('top100Details').innerHTML += '<div class="status">Vote failed: ' + error.message + '</div>';
