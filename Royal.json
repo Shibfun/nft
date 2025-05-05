@@ -1,6 +1,31 @@
 {
   "name": "Royal Woof",
-  "description": "A unique NFT on Shibarium",
+  "description": "Royal Woof is an exclusive VIP NFT on Shibarium meme coin, granting holders elite status in the Shiba Inu ecosystem. This prestigious token embodies the spirit of the Shib Army, offering unique perks, access to premium community events, and a symbol of loyalty to the 'to the moon' journey. Crafted with iconic Shiba flair, Royal Woof is your key to the inner circle of the Woof revolution.",
   "image": "https://raw.githubusercontent.com/Shibfun/nft/90a7678918e6d81336d37a720b8fd7ca52bba388/images/Royal.svg",
-  "attributes": []
+  "attributes": [
+    {
+      "trait_type": "Membership Tier",
+      "value": "VIP"
+    },
+    {
+      "trait_type": "Collection",
+      "value": "Shib Royal"
+    },
+    {
+      "trait_type": "Perk",
+      "value": "Exclusive Shib Army Events"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Legendary"
+    },
+    {
+      "trait_type": "Blockchain",
+      "value": "Shibarium"
+    },
+    {
+      "trait_type": "Loyalty Badge",
+      "value": "Moon Shiba"
+    }
+  ]
 }
