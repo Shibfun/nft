@@ -257,12 +257,15 @@
             try {
                 web3 = new Web3(window.ethereum);
                 accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                console.log('Connected to chain:', chainId, 'Account:', accounts[0]);
                 multiCallContract = new web3.eth.Contract(MULTICALL_CONTRACT_ABI, MULTICALL_CONTRACT_ADDRESS);
-                showModal('Wallet connected successfully!');
+                showModal(`Wallet connected successfully! Current network ID: ${chainId}. Ensure your NFT contract is on this network.`);
                 updateWalletAddress();
                 document.getElementById('approveBtn').disabled = false;
             } catch (error) {
-                showModal('Connection failed: ' + error.message);
+                console.error('Wallet connection error:', error);
+                showModal(`Connection failed: ${error.message || 'Unknown error'}`);
             } finally {
                 connectButton.classList.remove('loading');
             }
@@ -286,25 +289,22 @@
             const approveButton = document.getElementById('approveBtn');
             approveButton.classList.add('loading');
             approveButton.disabled = true;
-
             try {
                 nftContract = new web3.eth.Contract(ERC721_ABI, contractAddress);
-                const isApproved = await window.nftcontract.methods.isApprovedForAll(accounts[0], MULTICALL_CONTRACT_ADDRESS).call();
+                const isApproved = await nftContract.methods.isApprovedForAll(accounts[0], MULTICALL_CONTRACT_ADDRESS).call();
                 if (isApproved) {
                     showModal('Contract already approved!');
-                    document.getElementById('approveBtn').disabled = true;
                     document.getElementById('batchTransferBtn').disabled = false;
                     fetchOwnedNFTs();
-                    approveButton.classList.remove('loading');
-                    return;
+                } else {
+                    await nftContract.methods.setApprovalForAll(MULTICALL_CONTRACT_ADDRESS, true).send({ from: accounts[0] });
+                    showModal('Contract approved successfully!');
+                    document.getElementById('batchTransferBtn').disabled = false;
+                    fetchOwnedNFTs();
                 }
-
-                await window.nftcontract.methods.setApprovalForAll(MULTICALL_CONTRACT_ADDRESS, true).send({ from: accounts[0] });
-                showModal('Contract approved successfully!');
-                document.getElementById('batchTransferBtn').disabled = false;
-                fetchOwnedNFTs();
             } catch (error) {
-                showModal('Approval failed: ' + error.message);
+                console.error('Approval error:', error);
+                showModal(`Approval failed: ${error.message || 'Unknown error'}`);
             } finally {
                 approveButton.classList.remove('loading');
                 approveButton.disabled = false;
@@ -313,24 +313,25 @@
 
         async function fetchOwnedNFTs() {
             if (!web3 || !nftContract || !accounts) {
-                showModal('Please connect your wallet and approve contract!');
+                showModal('Please connect your wallet and approve the contract!');
                 return;
             }
             const nftList = document.getElementById('nftList');
             nftList.innerHTML = '<p>Loading your NFTs...</p>';
             try {
-                const tokenIds = await window.nftcontract.methods.walletOfOwnerByIndex(accounts[0]).call();
+                const tokenIds = await nftContract.methods.walletOfOwner(accounts[0]).call();
                 if (tokenIds.length === 0) {
                     nftList.innerHTML = '<p>You don’t own any NFTs for this contract.</p>';
                     return;
                 }
                 nftList.innerHTML = '';
-                for (let id tokenId of tokenIds) {
-                    const tokenURI = await window.nftcontract.methods.tokenURI(tokenId)).call();
-                    await displayNFT(id tokenId, tokenURI);
+                for (const tokenId of tokenIds) {
+                    const tokenURI = await nftContract.methods.tokenURI(tokenId).call();
+                    await displayNFT(tokenId, tokenURI);
                 }
             } catch (error) {
-                showModal('Failed to fetch NFTs: ' + error.message);
+                console.error('Fetch NFTs error:', error);
+                showModal(`Failed to fetch NFTs: ${error.message || 'Unknown error'}`);
                 nftList.innerHTML = '<p>Error loading NFTs.</p>';
             }
         }
@@ -350,9 +351,9 @@
                 metadata = { name: `Token #${tokenId}`, image: '' };
             }
             const nftDiv = document.createElement('div');
-            .classList.add('nft-card');
+            nftDiv.className = 'nft-card';
             nftDiv.innerHTML = `
-                <img src="${metadata.image || 'https://via.placeholder.com/150}" alt="${metadata.name}">
+                <img src="${metadata.image || 'https://via.placeholder.com/150'}" alt="${metadata.name}">
                 <p>${metadata.name} (ID: ${tokenId})</p>
                 <input type="text" id="transferAddress${tokenId}" placeholder="Recipient Address">
                 <button class="action-btn" onclick="transferNFT(${tokenId})">Transfer</button>
@@ -362,21 +363,22 @@
 
         async function transferNFT(tokenId) {
             if (!web3 || !nftContract || !accounts) {
-                showModal('Please connect your wallet and approve!');
+                showModal('Please connect your wallet and approve the contract!');
                 return;
             }
-            const transferAddress = document.getElementById(`transferAddress${tokenId}`).value);
-            if (!web3.utils.isValidAddress(transferAddress)) {
+            const transferAddress = document.getElementById(`transferAddress${tokenId}`).value;
+            if (!web3.utils.isAddress(transferAddress)) {
                 showModal('Invalid recipient address!');
                 return;
             }
             try {
                 showModal('Transferring NFT...');
-                await window.nftcontract.methods.safeTransferFrom(accounts[0], transferAddress, tokenId).send({ from: accounts[0] });
+                await nftContract.methods.safeTransferFrom(accounts[0], transferAddress, tokenId).send({ from: accounts[0] });
                 showModal('NFT transferred successfully!');
                 fetchOwnedNFTs();
             } catch (error) {
-                showModal('Transfer failed: ' + error.message);
+                console.error('Transfer error:', error);
+                showModal(`Transfer failed: ${error.message || 'Unknown error'}`);
             }
         }
 
@@ -390,73 +392,74 @@
 
         async function batchTransferNFTs() {
             if (!web3 || !nftContract || !multiCallContract || !accounts) {
-                showModal('Please connect your wallet and approve!');
+                showModal('Please connect your wallet and approve the contract!');
+                return;
+            }
+            const contractAddress = document.getElementById('contractAddress').value.trim();
+            if (!web3.utils.isAddress(contractAddress)) {
+                showModal('Invalid contract address!');
                 return;
             }
             const batchInput = document.getElementById('batchInput').value.trim();
             const batchButton = document.getElementById('batchTransferBtn');
             batchButton.classList.add('loading');
             batchButton.disabled = true;
-
             try {
                 const lines = batchInput.split('\n').filter(line => line.trim() !== '');
                 if (lines.length === 0) {
                     showModal('Please provide at least one address and amount.');
-                    batchButton.classList.remove('loading');
-                    batchButton.disabled = false;
-                    return;
+                    throw new Error('Empty input');
                 }
-
                 const transfers = [];
                 let totalAmount = 0;
                 for (const line of lines) {
                     const [address, amountStr] = line.split(',').map(item => item.trim());
                     if (!web3.utils.isAddress(address)) {
-                        throw new Error(`Invalid address: ${address}`);
+                        showModal(`Invalid address: ${address}`);
+                        throw new Error('Invalid address');
                     }
                     const amount = parseInt(amountStr);
                     if (isNaN(amount) || amount < 1) {
-                        throw new Error(`Invalid amount for address ${address}: ${amountStr}`);
+                        showModal(`Invalid amount for address ${address}: ${amountStr}`);
+                        throw new Error('Invalid amount');
                     }
                     transfers.push({ address, amount });
                     totalAmount += amount;
                 }
-
                 if (totalAmount > 100) {
                     showModal('Total transfer amount exceeds 100 NFTs.');
-                    return;
+                    throw new Error('Amount limit exceeded');
                 }
-
-                const tokenIds = await nftContract.methods.walletOfOwnerByIndex(accounts[0]).call();
+                const tokenIds = await nftContract.methods.walletOfOwner(accounts[0]).call();
                 if (tokenIds.length < totalAmount) {
                     showModal(`You only own ${tokenIds.length} NFTs, but requested to transfer ${totalAmount}.`);
-                    return;
+                    throw new Error('Insufficient NFTs');
                 }
-
                 const shuffledTokenIds = shuffleArray([...tokenIds]);
                 const toAddresses = [];
                 const selectedTokenIds = [];
                 let tokenIndex = 0;
-
                 for (const { address, amount } of transfers) {
                     for (let i = 0; i < amount; i++) {
                         toAddresses.push(address);
-                        selectedTokenIds.push(shuffledTokenIds[i tokenIndex++]);
+                        selectedTokenIds.push(shuffledTokenIds[tokenIndex++]);
                     }
                 }
-
                 showModal(`Preparing to transfer ${totalAmount} NFTs...`);
-
                 await multiCallContract.methods.batchTransfer(
-                    document.getElementById('contractAddress').value.trim(),
+                    contractAddress,
                     toAddresses,
                     selectedTokenIds
                 ).send({ from: accounts[0] });
-
                 showModal('Batch transfer completed successfully!');
                 fetchOwnedNFTs();
             } catch (error) {
-                showModal('Batch transfer failed: ' + error.message);
+                console.error('Batch transfer error:', error);
+                if (!error.message.includes('Empty input') && !error.message.includes('Invalid address') && 
+                    !error.message.includes('Invalid amount') && !error.message.includes('Amount limit exceeded') && 
+                    !error.message.includes('Insufficient NFTs')) {
+                    showModal(`Batch transfer failed: ${error.message || 'Unknown error'}`);
+                }
             } finally {
                 batchButton.classList.remove('loading');
                 batchButton.disabled = false;
