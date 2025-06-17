@@ -201,7 +201,9 @@
         <input type="text" id="contractAddress" placeholder="Enter NFT contract address">
         <button id="approveBtn" class="action-btn" onclick="approveContract()" disabled>Approve Contract</button>
         <label for="batchInput">Batch Transfer (Format: address,amount per line, max total 100):</label>
-        <textarea id="batchInput" placeholder="e.g.\n0x123...abc,1\n0x456...def,2"></textarea>
+        <textarea id="batchInput" placeholder="e.g.
+0x394E7b6F051f0c34417d87831E156EBbbbdDA490,8
+0x6d128f9717280eED5553d714972B16fdfDcC5c90,6"></textarea>
         <button id="batchTransferBtn" class="action-btn" onclick="batchTransferNFTs()" disabled>Batch Transfer</button>
     </div>
     <div class="nft-viewer">
